@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="icon.png">
+    <title>Type test</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script src="unicode2bijoy.js"></script>
+    <style>
+        :root {
+            --bg-color: #18191c;
+            --text-color: #5c5e62;
+            --text-active: #ff7a00;
+            /* Premium Vibrant Orange */
+            --text-correct: #ff9f43;
+            /* Readable Light Orange */
+            --text-incorrect: #ff4757;
+            /* Clear Red */
+            --caret-color: #ff7a00;
+            --font-ui: 'Inter', sans-serif;
+            --font-main: 'Roboto Mono', monospace;
+            --font-bn: 'Noto Sans Bengali', sans-serif;
+            --font-bn-classic: 'SutonnyMJ', 'Sutonny MJ', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-ui);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 8vh 24px 40px 24px;
+            overflow-x: hidden;
+            transition: background-color 0.3s ease;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            gap: 50px;
+        }
+
+        /* Header & Controls */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .logo {
+            font-family: var(--font-ui);
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #e6e6e6;
+            letter-spacing: -0.5px;
+            user-select: none;
+        }
+
+        .logo span {
+            color: var(--text-active);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            background: #202124;
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid #2d2f34;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .language-selector,
+        .time-selector,
+        .difficulty-selector {
+            display: flex;
+            gap: 4px;
+        }
+
+        /* Divider inside controls */
+        .controls>div:not(:last-child) {
+            border-right: 1px solid #2d2f34;
+            padding-right: 12px;
+        }
+
+        button {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-family: var(--font-ui);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 6px 12px;
+            border-radius: 14px;
+        }
+
+        button:hover {
+            color: #e6e6e6;
+        }
+
+        button.active {
+            color: var(--text-active);
+            background: rgba(255, 122, 0, 0.12);
+        }
+
+        /* Typing Area */
+        #typing-section {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        #timer {
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: var(--text-active);
+            font-family: var(--font-main);
+            transition: all 0.2s ease;
+        }
+
+        #words-container {
+            font-family: var(--font-main);
+            font-size: 1.65rem;
+            line-height: 1.6;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0 14px;
+            height: 5.2em;
+            /* Dynamic height fits 3 lines + Bengali descenders */
+            overflow: hidden;
+            position: relative;
+            user-select: none;
+            outline: none;
+            scroll-behavior: smooth;
+        }
+
+        .word {
+            display: flex;
+            margin-bottom: 8px;
+            border-bottom: 2px solid transparent;
+            transition: border-color 0.2s ease;
+        }
+
+        .letter {
+            position: relative;
+            transition: color 0.12s ease;
+        }
+
+        /* States */
+        .letter.correct {
+            color: var(--text-correct);
+        }
+
+        .letter.incorrect {
+            color: var(--text-incorrect);
+        }
+
+        .word.error {
+            border-bottom: 2px solid var(--text-incorrect);
+        }
+
+        /* Blinking Caret */
+        .letter.active::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 2.5px;
+            height: 100%;
+            background-color: var(--caret-color);
+            animation: blink 1s infinite;
+            box-shadow: 0 0 8px var(--caret-color);
+        }
+
+        /* Caret for the space after a word */
+        .word .letter.active-space::after {
+            content: "";
+            position: absolute;
+            right: -10px;
+            bottom: 0;
+            width: 2.5px;
+            height: 100%;
+            background-color: var(--caret-color);
+            animation: blink 1s infinite;
+            box-shadow: 0 0 8px var(--caret-color);
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0;
+            }
+        }
+
+        /* Results Screen */
+        .hidden {
+            display: none !important;
+        }
+
+        #results-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .stats {
+            display: flex;
+            gap: 50px;
+            flex-wrap: wrap;
+            justify-content: center;
+            background: #202124;
+            padding: 30px 50px;
+            border-radius: 20px;
+            border: 1px solid #2d2f34;
+        }
+
+        .stat-box {
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .stat-title {
+            font-size: 1.1rem;
+            color: var(--text-color);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 3.5rem;
+            color: var(--text-active);
+            font-weight: 700;
+            font-family: var(--font-main);
+        }
+
+        .correct-text {
+            color: var(--text-correct);
+        }
+
+        .incorrect-text {
+            color: var(--text-incorrect);
+        }
+
+        .restart-btn {
+            background-color: #202124;
+            color: #e6e6e6;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: 1px solid #2d2f34;
+            transition: all 0.2s ease;
+        }
+
+        .restart-btn:hover {
+            background-color: var(--text-active);
+            color: #18191c;
+            border-color: var(--text-active);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 122, 0, 0.3);
+        }
+
+        .restart-btn:active {
+            transform: translateY(0);
+        }
+
+        .restart-hint {
+            text-align: center;
+            font-size: 0.9rem;
+            margin-top: 15px;
+            color: var(--text-color);
+        }
+
+        .restart-hint span {
+            background: #202124;
+            padding: 3px 8px;
+            border-radius: 6px;
+            border: 1px solid #2d2f34;
+            color: #e6e6e6;
+        }
+
+        /* Mobile & Tablet Responsiveness */
+        @media (max-width: 768px) {
+            body {
+                padding-top: 4vh;
+            }
+
+            .container {
+                gap: 30px;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: center;
+                gap: 15px;
+            }
+
+            .controls {
+                justify-content: center;
+                width: 100%;
+                gap: 10px;
+                padding: 8px;
+            }
+
+            .controls>div:not(:last-child) {
+                border-right: none;
+                padding-right: 0;
+            }
+
+            .language-selector,
+            .time-selector,
+            .difficulty-selector {
+                margin: 4px;
+            }
+
+            #words-container {
+                font-size: 1.3rem;
+                height: 5.2em;
+                /* Keeps scaling correctly */
+            }
+
+            .stats {
+                gap: 24px;
+                padding: 20px 30px;
+                width: 100%;
+            }
+
+            .stat-value {
+                font-size: 2.8rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #timer {
+                font-size: 1.8rem;
+            }
+
+            #words-container {
+                font-size: 1.15rem;
+                height: 5.2em;
+            }
+
+            .stat-box {
+                min-width: 90px;
+            }
+
+            .stat-value {
+                font-size: 2.2rem;
+            }
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #5c5e62;
+            margin-top: 40px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            user-select: none;
+        }
+
+        .footer span {
+            color: var(--text-active);
+            font-weight: 600;
+        }
+
+        /* History Section Styles */
+        .history-container {
+            background: #202124;
+            padding: 24px 30px;
+            border-radius: 20px;
+            border: 1px solid #2d2f34;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            animation: fadeIn 0.4s ease forwards;
+            margin-top: 20px;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #2d2f34;
+            padding-bottom: 10px;
+        }
+
+        .history-title {
+            font-size: 1.1rem;
+            color: #e6e6e6;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-family: var(--font-ui);
+        }
+
+        .reset-history-btn {
+            background: transparent;
+            border: 1px solid #2d2f34;
+            color: var(--text-color);
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: var(--font-ui);
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            outline: none;
+        }
+
+        .reset-history-btn:hover {
+            color: var(--text-incorrect);
+            border-color: var(--text-incorrect);
+            background: rgba(255, 71, 87, 0.1);
+        }
+
+        .reset-history-btn.confirming {
+            color: #ffffff;
+            border-color: var(--text-incorrect);
+            background: var(--text-incorrect);
+        }
+
+        .reset-history-btn svg {
+            transition: transform 0.2s ease;
+        }
+
+        .reset-history-btn:hover svg {
+            transform: scale(1.1);
+        }
+
+        .history-stats {
+            display: flex;
+            gap: 24px;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .history-stat-box {
+            background: #18191c;
+            padding: 16px 24px;
+            border-radius: 12px;
+            border: 1px solid #2d2f34;
+            flex: 1;
+            min-width: 150px;
+            max-width: 200px;
+        }
+
+        .history-stat-title {
+            font-size: 0.85rem;
+            color: var(--text-color);
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .history-stat-value {
+            font-size: 1.8rem;
+            color: var(--text-active);
+            font-weight: 700;
+            font-family: var(--font-main);
+        }
+
+        .history-stat-value .unit {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-color);
+            margin-left: 4px;
+        }
+
+        .history-table-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-family: var(--font-ui);
+            font-size: 0.9rem;
+        }
+
+        .history-table th {
+            color: var(--text-color);
+            font-weight: 500;
+            padding: 10px 12px;
+            border-bottom: 1px solid #2d2f34;
+        }
+
+        .history-table td {
+            color: #e6e6e6;
+            padding: 10px 12px;
+            border-bottom: 1px solid #2d2f34;
+        }
+
+        .history-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Settings Toggle Button */
+        .settings-toggle-btn {
+            background: #202124;
+            border: 1px solid #2d2f34;
+            color: var(--text-color);
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+        }
+
+        .settings-toggle-btn:hover {
+            color: var(--text-active);
+            border-color: var(--text-active);
+            transform: rotate(45deg);
+            box-shadow: 0 0 12px rgba(255, 122, 0, 0.25);
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(24, 25, 28, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.hidden {
+            display: none !important;
+            opacity: 0;
+        }
+
+        /* Modal Box */
+        .modal-content {
+            background: #202124;
+            border: 1px solid #2d2f34;
+            border-radius: 24px;
+            width: 90%;
+            max-width: 600px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 122, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            animation: zoomIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        @keyframes zoomIn {
+            from {
+                transform: scale(0.9);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #2d2f34;
+            padding-bottom: 15px;
+        }
+
+        .modal-header h3 {
+            font-size: 1.3rem;
+            color: #e6e6e6;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 1.8rem;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 5px;
+            transition: color 0.2s ease;
+        }
+
+        .close-btn:hover {
+            color: var(--text-incorrect);
+        }
+
+        .modal-body {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .settings-desc {
+            font-size: 0.95rem;
+            color: var(--text-color);
+            line-height: 1.4;
+        }
+
+        #custom-text-input {
+            width: 100%;
+            height: 150px;
+            background: #18191c;
+            border: 1px solid #2d2f34;
+            border-radius: 12px;
+            padding: 15px;
+            color: #e6e6e6;
+            font-family: var(--font-ui);
+            font-size: 1rem;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        #custom-text-input:focus {
+            border-color: var(--text-active);
+        }
+
+        .option-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .option-group label {
+            font-size: 0.9rem;
+            color: #e6e6e6;
+            font-weight: 500;
+        }
+
+        .custom-lang-selector {
+            display: flex;
+            gap: 8px;
+            background: #18191c;
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid #2d2f34;
+            width: max-content;
+        }
+
+        .custom-lang-btn {
+            font-size: 0.85rem;
+            padding: 6px 12px;
+            border-radius: 8px;
+        }
+
+        .custom-lang-btn.active {
+            color: var(--text-active);
+            background: rgba(255, 122, 0, 0.12);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+            border-top: 1px solid #2d2f34;
+            padding-top: 20px;
+        }
+
+        .btn-primary {
+            background-color: var(--text-active);
+            color: #18191c;
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+            border: 1px solid var(--text-active);
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(255, 122, 0, 0.3);
+        }
+
+        .btn-secondary {
+            background-color: #18191c;
+            color: #e6e6e6;
+            border: 1px solid #2d2f34;
+            padding: 10px 20px;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .btn-secondary:hover {
+            background-color: #2d2f34;
+            color: #fff;
+        }
+
+        /* Test Control Buttons Styling */
+        .test-actions {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        .action-btn {
+            background-color: #202124;
+            color: #e6e6e6;
+            border: 1px solid #2d2f34;
+            padding: 8px 18px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .action-btn:hover:not(:disabled) {
+            border-color: var(--text-active);
+            color: var(--text-active);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 122, 0, 0.15);
+        }
+
+        .action-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            border-color: #2d2f34;
+            color: var(--text-color);
+        }
+
+        #start-test-btn:not(:disabled) {
+            border-color: rgba(255, 122, 0, 0.35);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">Type<span>test</span></div>
+            <div class="header-controls-wrapper"
+                style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                <div class="controls">
+                    <div class="language-selector">
+                        <button class="lang-btn active" data-lang="en">EN</button>
+                        <button class="lang-btn" data-lang="bn">বাং (ইউনিকোড)</button>
+                        <button class="lang-btn" data-lang="bn_classic">বাং (বিজয়)</button>
+                    </div>
+                    <div class="difficulty-selector hidden" id="difficulty-selector">
+                        <button class="diff-btn active" data-diff="easy">Easy</button>
+                        <button class="diff-btn" data-diff="medium">Med</button>
+                        <button class="diff-btn" data-diff="hard">Hard</button>
+                    </div>
+                    <div class="time-selector">
+                        <button class="time-btn active" data-time="60">1m</button>
+                        <button class="time-btn" data-time="120">2m</button>
+                        <button class="time-btn" data-time="300">5m</button>
+                    </div>
+                </div>
+                <button id="settings-btn" class="settings-toggle-btn" title="Custom Text Settings">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" class="feather feather-settings">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <main id="typing-section">
+            <div id="timer">60</div>
+            <div id="words-container"></div>
+            <div class="test-actions">
+                <button id="start-test-btn" class="action-btn" title="Start/Resume Test">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <span>Start</span>
+                </button>
+                <button id="pause-test-btn" class="action-btn" title="Pause/Stop Test" disabled>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                        <rect x="6" y="4" width="4" height="16"></rect>
+                        <rect x="14" y="4" width="4" height="16"></rect>
+                    </svg>
+                    <span>Pause</span>
+                </button>
+                <button id="action-restart-btn" class="action-btn" title="Restart Test">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                    <span>Restart</span>
+                </button>
+            </div>
+        </main>
+
+        <section id="results-section" class="hidden">
+            <div class="stats">
+                <div class="stat-box">
+                    <div class="stat-title">WPM</div>
+                    <div class="stat-value" id="wpm-value">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-title">Accuracy</div>
+                    <div class="stat-value" id="acc-value">0%</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-title">Keystrokes</div>
+                    <div class="stat-value" id="key-value"><span class="correct-text">0</span> | <span
+                            class="incorrect-text">0</span></div>
+                </div>
+            </div>
+            <button id="restart-btn" class="restart-btn">Restart Test</button>
+        </section>
+
+        <!-- History Section -->
+        <section id="history-section" class="history-container">
+            <div class="history-header">
+                <h3 class="history-title">Performance History</h3>
+                <button id="reset-history-btn" class="reset-history-btn" title="Reset History">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-trash-2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                    <span>Reset</span>
+                </button>
+            </div>
+            <div class="history-stats">
+                <div class="history-stat-box">
+                    <div class="history-stat-title">Last Speed</div>
+                    <div class="history-stat-value" id="last-wpm">0 <span class="unit">WPM</span></div>
+                </div>
+                <div class="history-stat-box">
+                    <div class="history-stat-title">Highest Speed</div>
+                    <div class="history-stat-value" id="highest-wpm">0 <span class="unit">WPM</span></div>
+                </div>
+            </div>
+            <div class="history-table-container">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Language</th>
+                            <th>Time Limit</th>
+                            <th>WPM</th>
+                            <th>Accuracy</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-rows">
+                        <!-- History rows dynamic -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer class="footer">
+            Developed by <span>Rubayet Khan</span>
+        </footer>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Custom Text Settings</h3>
+                <button id="close-settings-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="settings-desc">Paste or type your own custom paragraph below to test your typing speed.</p>
+                <textarea id="custom-text-input" placeholder="Type or paste your text here..."
+                    spellcheck="false"></textarea>
+
+                <div class="settings-options">
+                    <div class="option-group">
+                        <label>Text Language & Layout:</label>
+                        <div class="custom-lang-selector">
+                            <button class="custom-lang-btn active" data-custom-lang="en">English (EN)</button>
+                            <button class="custom-lang-btn" data-custom-lang="bn">বাং (ইউনিকোড)</button>
+                            <button class="custom-lang-btn" data-custom-lang="bn_classic">বাং (বিজয়)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="clear-custom-btn" class="btn-secondary">Clear / Use Default</button>
+                <button id="apply-custom-btn" class="btn-primary">Apply Text</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample Dictionaries
+        const wordsEN = ["the", "be", "to", "of", "and", "a", "in", "that", "have", "I", "it", "for", "not", "on", "with", "he", "as", "you", "do", "at", "this", "but", "his", "by", "from", "they", "we", "say", "her", "she", "or", "an", "will", "my", "one", "all", "would", "there", "their", "what", "so", "up", "out", "if", "about", "who", "get", "which", "go", "me", "when", "make", "can", "like", "time", "no", "just", "him", "know", "take", "people", "into", "year", "your", "good", "some", "could", "them", "see", "other", "than", "then", "now", "look", "only", "come", "its", "over", "think", "also", "back", "after", "use", "two", "how", "our", "work", "first", "well", "way", "even", "new", "want", "because", "any", "these", "give", "day", "most", "us"];
+        const wordsBN = ["আমি", "তুমি", "সে", "এবং", "কি", "এই", "যে", "না", "করা", "আমার", "তার", "থেকে", "হয়", "জন্য", "একটি", "ও", "সাথে", "কোন", "ছিল", "আর", "পারে", "আমরা", "কিন্তু", "পর", "হবে", "করে", "আছে", "বা", "তাই", "কিভাবে", "যদি", "বলল", "এক", "সময়", "এখন", "অনেক", "দিন", "সব", "কেউ", "কিছু", "কথা", "মানুষ", "ভাল", "কাজ", "আমাদের", "দিয়ে", "তখন", "খুব", "যাবে", "করতে", "মতো", "নিজের", "তাকে", "এমন", "আবার", "গেল", "শুধু", "নিয়ে", "তো", "হয়ে", "তবে", "অন্য", "দিন", "বড়", "সামনে", "প্রথম", "কাছে", "দিতে", "আগে", "নতুন", "দেখতে", "যারা", "হলে"];
+
+        const sentencesBN = {
+            easy: [
+                "আমাদের দেশের নাম বাংলাদেশ। এদেশের প্রকৃতি দেখতে অনেক সুন্দর। চারদিকে তাকালে শুধু সবুজ গাছপালা আর ফসলের বিশাল মাঠ দেখা যায়। প্রতিদিন ভোরে পাখির মিষ্টি ডাকে আমাদের ঘুম ভাঙে। আমাদের দেশের গ্রামে অনেক ছোট-বড় নদী আর খাল ছড়িয়ে আছে। বর্ষাকালে যখন প্রচুর বৃষ্টি হয়, তখন সব নদীতে অনেক পানি থাকে। গ্রামের মানুষ তখন ছোট ছোট নৌকায় করে এক জায়গা থেকে অন্য জায়গায় যাতায়াত করে। বিকেলে নদীর পাড়ে বসে বাতাস খেতে সবার খুব ভালো লাগে। এই সুন্দর দেশটিকে আমরা অনেক বেশি ভালোবাসি।",
+                "আমি প্রতিদিন সকালে খুব ভোরে ঘুম থেকে উঠি। ঘুম থেকে উঠে ভালো করে হাত মুখ ধুয়ে নিই। এরপর সকালের নাস্তা শেষ করে বই পড়তে বসি। পড়া শেষ হলে আমি গোসল করে স্কুলের জন্য তৈরি হই। স্কুলে গিয়ে বন্ধুদের সাথে অনেক মজা করে সময় কাটাই। আমাদের শিক্ষকেরা ক্লাসে অনেক নতুন নতুন কথা শেখান। বিকেলে স্কুল ছুটি হলে আমরা সবাই মিলে খোলা মাঠে খেলাধুলা করি। সন্ধ্যায় বাসায় ফিরে আবার পড়াশোনা করতে বসি। রাতের খাবার খেয়ে আমরা সবাই মিলে কিছুক্ষণ গল্প করি এবং তারপর ঘুমাতে যাই।",
+                "সুস্থ ও সুন্দরভাবে বেঁচে থাকার জন্য আমাদের প্রতিদিন ভালো খাবার খাওয়া উচিত। তাজা শাকসবজি ও ফলমূলে অনেক বেশি ভিটামিন থাকে, যা আমাদের শরীরকে ভালো রাখে। সকালে একটি ডিম এবং এক গ্লাস দুধ খাওয়া স্বাস্থ্যের জন্য অনেক উপকারী। শরীরের পানির অভাব দূর করতে প্রতিদিন বেশি করে বিশুদ্ধ পানি পান করতে হবে। রাস্তার পাশের খোলা ও বাসি খাবার খাওয়া একদম ঠিক নয়, এতে পেটের অসুখ হতে পারে। খাওয়ার আগে সবসময় ভালো করে দুই হাত সাবান দিয়ে ধুয়ে নিতে হবে। শরীর সুস্থ থাকলে মনও ভালো থাকে।",
+                "আমার গ্রামের বাড়ি দেখতে অনেক সুন্দর এবং শান্ত। শহরের মতো গ্রামে কোনো কোলাহল বা ধুলোবালি নেই। গ্রামের মানুষেরা খুব সহজ সরল এবং মিলেমিশে জীবনযাপন করে। তাদের সবার মধ্যে অনেক গভীর মিল আছে। গ্রামের এক পাশ দিয়ে একটি ছোট নদী বয়ে গেছে। নদীর দুই তীরে অনেক বড় বড় গাছপালা আর ফসলের মাঠ। বিকেলে নদীর পাড়ে হাঁটতে এবং নদীর জলের শব্দ শুনতে আমার খুব ভালো লাগে। ছুটির দিনে সুযোগ পেলেই আমি আমার গ্রামের বাড়িতে ছুটে যাই। গ্রামের এই শান্ত পরিবেশ আমার মনকে খুব আনন্দ দেয়।",
+                "বাংলা ক্যালেন্ডার অনুযায়ী আষাঢ় ও শ্রাবণ এই দুই মাস মিলে বর্ষাকাল হয়। এ সময় আকাশে সারাদিন অনেক কালো মেঘ জমা থাকে। মাঝে মাঝেই আকাশ থেকে ঝুম বৃষ্টি নামে। বৃষ্টির পানিতে চারপাশের গাছপালা ধুয়ে একদম পরিষ্কার ও সবুজ হয়ে যায়। বৃষ্টির দিনে বাইরে যাওয়া কঠিন হয়ে পড়ে, তাই সবাই ঘরেই থাকে। তখন ঘরে বসে পরিবারের সবার সাথে গরম খিচুড়ি খেতে খুব ভালো লাগে। তবে একটানা অনেক বেশি বৃষ্টি হলে রাস্তাঘাটে পানি জমে যায় এবং চলাফেরায় কিছুটা সমস্যা হয়। এরপরও বৃষ্টির দিনটি আমার কাছে অনেক প্রিয়।",
+                "আমার একটি ছোট, সুন্দর ও সুখী পরিবার আছে। পরিবারের সদস্য বলতে বাবা, মা, বড় ভাই ও ছোট বোন মিলে আমরা একসাথে থাকি। বাবা প্রতিদিন সকালে কাজের জন্য অফিসে চলে যান। মা সারাদিন আমাদের দেখাশোনা করেন এবং আমাদের জন্য অনেক মজার মজার খাবার রান্না করেন। বড় ভাই আমাকে পড়াশোনায় অনেক সাহায্য করে। আমরা সবাই পরিবারের সবাইকে খুব ভালোবাসি এবং বিপদে একে অপরের পাশে দাঁড়াই। প্রতি সপ্তাহে ছুটির দিনে আমরা সবাই মিলে বাইরে কোনো সুন্দর জায়গায় ঘুরতে যাই। পরিবারের সবার সাথে সময় কাটাতে আমার সবচেয়ে বেশি ভালো লাগে।",
+                "আমার বাড়ির সামনের উঠোনে একটি খুব সুন্দর ছোট ফুলের বাগান আছে। বাগান করা আমার সবচেয়ে বড় শখ। আমি প্রতিদিন বিকেলে নিয়ম করে বাগানের গাছে পানি দিই এবং আগাছা পরিষ্কার করি। আমার বাগানে লাল গোলাপ, হলুদ গাদা, শিউলি আর জবা ফুল গাছ আছে। সকালে যখন গাছে অনেক ফুল ফোটে, তখন বাগানটি দেখতে চমৎকার লাগে। ফুলের মিষ্টি সুবাসে চারপাশ ভরে ওঠে। অনেক রঙের প্রজাপতি এবং মৌমাছি ফুলে ফুলে উড়ে বেড়ায়। ছুটির দিনে আমি বাগানের গাছের যত্ন নিতে সবচেয়ে বেশি সময় পার করি।",
+                "আধুনিক যুগে মোবাইল ফোন আমাদের অনেক দরকারি কাজে লাগে। মোবাইল ফোনের সাহায্যে আমরা পৃথিবীর যেকোনো প্রান্তে থাকা মানুষের সাথে খুব সহজে কথা বলতে পারি। ইন্টারনেটের মাধ্যমে অনেক নতুন নতুন জিনিস শেখা এবং জানা যায়। এখন মোবাইল দিয়ে ছবি তোলা যায় এবং ভিডিও কল করে দূরের মানুষকে দেখাও যায়। তবে সারাদিন মোবাইল ফোন নিয়ে বসে থাকা চোখের জন্য একদম ভালো নয়। অতিরিক্ত মোবাইল ব্যবহার করলে পড়াশোনার অনেক ক্ষতি হয়। তাই আমাদের সবার উচিত শুধু দরকারি কাজে এবং সঠিক সময়ে মোবাইল ফোন ব্যবহার করা।",
+                "ঈদ হলো আমাদের বছরের সবচেয়ে বড় এবং আনন্দের উৎসবের দিন। ঈদের দিন সকালে খুব ভোরে ঘুম থেকে উঠে গোসল করে নতুন জামা পরতে সবার খুব ভালো লাগে। এরপর সবাই মিলে মাঠে গিয়ে ঈদের নামাজ আদায় করি। নামাজ শেষে আমরা সবাই একে অপরের সাথে কোলাকুলি করি। বাসায় ফিরে মজার মজার সেমাই, পায়েস ও মিষ্টি খাই। বিকেলে বন্ধুদের সাথে মিলে আশেপাশের অনেক জায়গায় ঘুরে বেড়াতে দারুণ লাগে। আমরা ছোটরা বড়দের সালাম করে অনেক সালামি বা টাকা উপহার হিসেবে পাই। এই আনন্দের দিনটির জন্য আমরা সারা বছর অপেক্ষা করি।",
+                "স্কুল এবং পড়াশোনার পর অবসরে গল্পের বই পড়া আমার অনেক পছন্দের একটি কাজ। বই পড়লে পৃথিবীর অনেক নতুন এবং অজানা কথা সহজে জানা যায়। গল্পের বই আমাদের মনের আনন্দ বাড়ায় এবং নতুন করে ভাবতে শেখায়। আমি প্রতি মাসে জমানো টাকা দিয়ে নতুন নতুন বই কিনি। রাতে ঘুমানোর আগে আমি প্রতিদিন অন্তত আধা ঘণ্টা বই পড়ি। রূপকথার গল্প আর ভ্রমণের বই পড়তে আমার সবচেয়ে বেশি ভালো লাগে। একটি ভালো বই মানুষের সবচেয়ে ভালো এবং বিশ্বস্ত বন্ধু হতে পারে, যা কখনো আমাদের ছেড়ে যায় না।"
+            ],
+            medium: [
+                "বাংলাদেশ দক্ষিণ এশিয়ার একটি ক্ষুদ্র অথচ অত্যন্ত সম্ভাবনাময় এবং প্রাকৃতিক সৌন্দর্যে ভরপুর দেশ। এ দেশের বুক চিরে জালের মতো ছড়িয়ে আছে অসংখ্য ছোট-বড় নদ-নদী, যা এ দেশের রূপকে করেছে আরও মোহনীয়। পদ্মা, মেঘনা, যমুনা, ব্রহ্মপুত্র এবং কর্ণফুলীর মতো বিশাল নদীগুলো আমাদের অর্থনীতি ও জীবনযাত্রায় গুরুত্বপূর্ণ ভূমিকা পালন করে চলেছে। ষড়ঋতুর এই দেশে প্রতি দুই মাস অন্তর অন্তর প্রকৃতির রূপ পরিবর্তন হয়, যা পৃথিবীর অন্য কোনো দেশে খুব একটা দেখা যায় না। গ্রীষ্মের প্রখর রোদে যখন প্রকৃতি খাঁ খাঁ করে, তখন বর্ষার অঝোর ধারা এসে চারপাশ শীতল করে দেয়। এরপর শরৎ আসে কাশফুল আর নীল আকাশের শুভ্রতা নিয়ে। হেমন্তে কৃষকের ঘরে ওঠে নতুন ধান, শুরু হয় নবান্ন উৎসব। শীতের কুয়াশামাখা সকাল এবং পিঠা-পুলির উৎসব শেষে বসন্ত তার রঙিন ফুলেল সাজে প্রকৃতিকে আবার নতুন করে জাগিয়ে তোলে। এই বৈচিত্র্যময় রূপই আমাদের মাতৃভূমিকে পৃথিবীর বুকে এক অনন্য সাধারণ বৈশিষ্ট্য দান করেছে। তাই আমাদের উচিত এই অপরূপ প্রাকৃতিক সৌন্দর্যকে রক্ষা করা এবং পরিবেশ দূষণ রোধে সচেষ্ট হওয়া।",
+                "বাঙালির ইতিহাস এক গৌরবময় এবং আত্মত্যাগের ইতিহাস। ১৯৫২ সালের ২১শে ফেব্রুয়ারি আমাদের জাতীয় জীবনের এক অবিস্মরণীয় দিন, যা ভাষা আন্দোলন নামে পরিচিত। মাতৃভাষা বাংলার সম্মান ও মর্যাদা রক্ষার জন্য সেদিন রফিক, সালাম, বরকত, জব্বারসহ নাম না জানা আরও অনেক তরুণ বুকের তাজা রক্ত রাজপথে ঢেলে দিয়েছিলেন। পৃথিবীর ইতিহাসে ভাষার জন্য এমন নিঃস্বার্থ আত্মত্যাগের দ্বিতীয় কোনো নজির নেই। তাদের এই চরম ত্যাগের বিনিময়েই আমরা আমাদের মায়ের ভাষায় কথা বলার অধিকার ফিরে পেয়েছি। পরবর্তীতে, ১৯৯৯ সালে ইউনেস্কো আমাদের এই ভাষা আন্দোলনকে আন্তর্জাতিক স্বীকৃতি প্রদান করে এবং ২১শে ফেব্রুয়ারিকে 'আন্তর্জাতিক মাতৃভাষা দিবস' হিসেবে ঘোষণা করে। আজ এই দিনটি বিশ্বের সকল ভাষাভাষী মানুষের কাছে তাদের নিজস্ব মাতৃভাষার অধিকার রক্ষার প্রতীক হিসেবে পালিত হয়। আমাদের দায়িত্ব হলো এই ভাষার শুদ্ধ চর্চা করা এবং এর সম্মান চির সমুন্নত রাখা। ভাষা শহীদদের এই আত্মত্যাগ আমাদের শিখিয়েছে কীভাবে অন্যায়ের বিরুদ্ধে প্রতিবাদ করতে হয় এবং নিজের অধিকার আদায় করতে হয়।",
+                "ভ্রমণ মানুষের মনের পরিধি বাড়ায় এবং নতুন কিছু শেখার সুযোগ করে দেয়। একঘেয়ে যান্ত্রিক জীবন থেকে কিছুটা মুক্তি পেতে ভ্রমণের কোনো বিকল্প নেই। বাংলাদেশের প্রাকৃতিক সৌন্দর্যের অন্যতম দুটি প্রধান আকর্ষণ হলো কক্সবাজার সমুদ্র সৈকত এবং সুন্দরবন। কক্সবাজার হলো বিশ্বের দীর্ঘতম অবিচ্ছিন্ন প্রাকৃতিক সমুদ্র সৈকত, যার বালুকাময় তীর এবং ঢেউয়ের গর্জন যে কাউকেই মুগ্ধ করে। এখানে দাঁড়িয়ে সূর্যাস্ত দেখার দৃশ্য সত্যিই এক অবিস্মরণীয় অভিজ্ঞতা। অন্যদিকে, সুন্দরবন হলো বিশ্বের বৃহত্তম ম্যানগ্রোভ বন এবং বিখ্যাত রয়েল বেঙ্গল টাইগারের প্রাকৃতিক আবাসস্থল। জালের মতো ছড়িয়ে থাকা নদী ও খাল, চিত্রা হরিণ, কুমির এবং অসংখ্য প্রজাতির পাখির কলকাকলিতে মুখরিত এই বন প্রকৃতির এক বিস্ময়। এছাড়া সিলেট, বান্দরবান ও রাঙ্গামাটির মতো পাহাড়ি অঞ্চলগুলোও পর্যটকদের কাছে সমানভাবে জনপ্রিয়। এই প্রাকৃতিক সম্পদগুলো রক্ষা করা এবং পরিবেশের ভারসাম্য বজায় রাখা আমাদের সবার নৈতিক দায়িত্ব। আমাদের দেশে পর্যটন শিল্পের প্রসারের জন্য অবকাঠামোগত উন্নয়ন এবং দেশি-বিদেশি পর্যটকদের জন্য উন্নত সুযোগ-সুবিধার ব্যবস্থা করা অত্যন্ত জরুরি।",
+                "বাংলাদেশ মূলত একটি কৃষিপ্রধান দেশ এবং কৃষিই আমাদের অর্থনীতির প্রধান চালিকাশক্তি। এ দেশের উর্বর পলিমাটি এবং অনুকূল আবহাওয়া বিভিন্ন ধরনের ফসল উৎপাদনের জন্য অত্যন্ত উপযোগী। যুগের পর যুগ ধরে আমাদের দেশের পরিশ্রমী কৃষকরা রোদ-বৃষ্টি উপেক্ষা করে মাঠে ফসল ফলিয়ে যাচ্ছেন। ধান, পাট, গম, আখ, আলু এবং বিভিন্ন ধরনের শাকসবজি আমাদের প্রধান কৃষিজাত পণ্য। একসময় পাটকে সোনালী আঁশ বলা হতো এবং এটি আমাদের বৈদেশিক মুদ্রা অর্জনের অন্যতম প্রধান মাধ্যম ছিল। বর্তমানে কৃষিক্ষেত্রে আধুনিক যন্ত্রপাতি, উন্নত মানের বীজ, রাসায়নিক সার এবং কীটনাশকের ব্যবহারের ফলে ফসলের উৎপাদন আগের তুলনায় বহুগুণ বৃদ্ধি পেয়েছে। তবে, জলবায়ু পরিবর্তনের কারণে বন্যা, খরা এবং সাইক্লোনের মতো প্রাকৃতিক দুর্যোগগুলো আমাদের কৃষিখাতের জন্য বড় ধরনের হুমকি হয়ে দাঁড়িয়েছে। তাই কৃষকদের বাঁচাতে এবং খাদ্য নিরাপত্তা নিশ্চিত করতে আধুনিক ও টেকসই কৃষি ব্যবস্থার ওপর আরও জোর দেওয়া প্রয়োজন। কৃষকদের উৎপাদিত পণ্যের ন্যায্য মূল্য নিশ্চিত করা গেলে তারা আরও বেশি উৎসাহিত হবে এবং দেশের অর্থনীতি আরও মজবুত ভিত্তির ওপর দাঁড়াবে।"
+            ],
+            hard: [
+                "একুশ শতকের এই আধুনিক বিশ্বে তথ্য ও যোগাযোগ প্রযুক্তি মানুষের জীবনযাত্রাকে পুরোপুরি বদলে দিয়েছে। ইন্টারনেট এবং স্মার্টফোনের সহজলভ্যতার কারণে আজ পুরো পৃথিবী যেন আমাদের হাতের মুঠোয় চলে এসেছে। শিক্ষা, চিকিৎসাসহ শুরু করে ব্যবসা-বাণিজ্য, যোগাযোগ এবং বিনোদনের প্রতিটি ক্ষেত্রে প্রযুক্তির প্রভাব অত্যন্ত গভীরভাবে লক্ষণীয়। আজকাল ঘরে বসেই আমরা বিশ্বের যেকোনো প্রান্তের খবর মুহূর্তের মধ্যে পেয়ে যাচ্ছি এবং প্রিয়জনদের সাথে সরাসরি ভিডিও কলে কথা বলতে পারছি। ওয়েব ডেভেলপমেন্ট, আর্টিফিশিয়াল ইন্টেলিজেন্স বা কৃত্রিম বুদ্ধিমত্তা, মেশিন লার্নিং এবং ক্লাউড কম্পিউটিংয়ের মতো নতুন নতুন প্রযুক্তিগুলো আমাদের ভবিষ্যৎ কাজের ধারণাকে সম্পূর্ণ পাল্টে দিচ্ছে। প্রযুক্তি শুধু আমাদের সময়কেই বাঁচাচ্ছে না, বরং এটি মানুষের কর্মদক্ষতা এবং উৎপাদনশীলতা বহুগুণ বাড়িয়ে দিয়েছে। তবে, প্রযুক্তির এই অবারিত সুবিধার পাশাপাশি সাইবার নিরাপত্তা এবং ব্যক্তিগত তথ্যের গোপনীয়তা রক্ষার মতো বিষয়গুলো নিয়ে আমাদের আরও বেশি সচেতন হওয়া অত্যন্ত জরুরি। প্রযুক্তির সঠিক ব্যবহারের মাধ্যমেই আমরা একটি উন্নত ও সমৃদ্ধশালী ভবিষ্যৎ গড়ে তুলতে সক্ষম হবো।",
+                "বাংলা সাহিত্য ও সংস্কৃতির ভাণ্ডার অত্যন্ত সমৃদ্ধ এবং বৈচিত্র্যময়। প্রাচীনকাল থেকেই বাংলা ভাষায় রচিত হয়েছে অসংখ্য কালজয়ী কবিতা, গান, উপন্যাস এবং নাটক। রবীন্দ্রনাথ ঠাকুর, কাজী নজরুল ইসলাম, জীবনানন্দ দাশ, শরৎচন্দ্র চট্টোপাধ্যায় এবং বঙ্কিমচন্দ্র চট্টোপাধ্যায়ের মতো মহান সাহিত্যিকদের লেখনী আমাদের সাহিত্যকে বিশ্বদরবারে এক অনন্য উচ্চতায় নিয়ে গেছে। বিশেষ করে, রবীন্দ্রনাথ ঠাকুরের নোবেল বিজয় বাংলা ভাষার জন্য এক বিশাল অর্জন। অন্যদিকে, আমাদের জাতীয় কবি কাজী নজরুল ইসলামের বিদ্রোহী কবিতাগুলো আজও অন্যায় ও অবিচারের বিরুদ্ধে মানুষকে প্রতিবাদী হতে অনুপ্রেরণা জোগায়। এছাড়া, লালন সাঁই এবং হাছন রাজার মতো মরমী সাধকদের বাউল গান আমাদের লোকসংস্কৃতির এক অমূল্য সম্পদ। গ্রামের মাঠে ঘাটে ছড়িয়ে থাকা ভাটিয়ালি, ভাওয়াইয়া, মুর্শিদি এবং জারি-সারি গানগুলো বাংলার সাধারণ মানুষের হাসি-কান্না, সুখ-দুঃখ এবং জীবনবোধের গভীর পরিচয় বহন করে, যা আমাদের সংস্কৃতির এক অবিচ্ছেদ্য অংশ। এই সমৃদ্ধ সাংস্কৃতিক ঐতিহ্যকে ধারণ করে আমাদের নতুন প্রজন্মকে সামনে এগিয়ে যেতে হবে এবং বিশ্বদরবারে বাংলার মুখ উজ্জ্বল করতে হবে।",
+                "১৯৭১ সালের মহান মুক্তিযুদ্ধ বাঙালি জাতির জীবনের সবচেয়ে গৌরবোজ্জ্বল এবং তাৎপর্যপূর্ণ অধ্যায়। দীর্ঘ চব্বিশ বছরের পাকিস্তানি শোষণ, বঞ্চনা এবং নিপীড়নের বিরুদ্ধে রুখে দাঁড়িয়ে এ দেশের স্বাধীনতাকামী মানুষ এক রক্তক্ষয়ী সশস্ত্র সংগ্রামে ঝাঁপিয়ে পড়েছিল। বঙ্গবন্ধু শেখ মুজিবুর রহমানের ঐতিহাসিক ৭ই মার্চের ভাষণ সমগ্র জাতিকে স্বাধীনতার মন্ত্রে উজ্জীবিত করেছিল। এরপর দীর্ঘ নয় মাস ধরে চলা guerrilla (গেরিলা) যুদ্ধ এবং সম্মুখ সমরে আমাদের বীর মুক্তিযোদ্ধারা নিজেদের জীবন বাজি রেখে লড়াই করেছেন। পাকিস্তানি হানাদার বাহিনী এবং তাদের এদেশীয় দোসররা এ দেশের নিরীহ মানুষের ওপর যে বর্বরোচিত গণহত্যা চালিয়েছিল, তা বিশ্ব ইতিহাসে এক কলঙ্কজনক অধ্যায়। অবশেষে, ৩০ লাখ শহীদের বুকের তাজা রক্ত এবং দুই লক্ষ মা-বোনের সর্বোচ্চ আত্মত্যাগের বিনিময়ে ১৯৭১ সালের ১৬ই ডিসেম্বর আমরা চূড়ান্ত বিজয় অর্জন করি। এই স্বাধীনতা আমাদের অহংকার এবং একে রক্ষা করার দায়িত্ব বর্তমান ও ভবিষ্যৎ প্রজন্মের সকলের। মুক্তিযুদ্ধের চেতনায় উদ্বুদ্ধ হয়ে একটি দুর্নীতিমুক্ত, অসাম্প্রদায়িক এবং উন্নত সমৃদ্ধশালী বাংলাদেশ গড়ে তোলাই হোক আমাদের সবার একান্ত অঙ্গীকার।"
+            ]
+        };
+
+        // DOM Elements
+        const wordsContainer = document.getElementById("words-container");
+        const timerElement = document.getElementById("timer");
+        const typingSection = document.getElementById("typing-section");
+        const resultsSection = document.getElementById("results-section");
+        const wpmValue = document.getElementById("wpm-value");
+        const accValue = document.getElementById("acc-value");
+        const keyValue = document.getElementById("key-value");
+        const restartBtn = document.getElementById("restart-btn");
+        const timeBtns = document.querySelectorAll(".time-btn");
+        const langBtns = document.querySelectorAll(".lang-btn");
+        const diffSelector = document.getElementById("difficulty-selector");
+        const diffBtns = document.querySelectorAll(".diff-btn");
+
+        // Settings Elements
+        const settingsBtn = document.getElementById("settings-btn");
+        const settingsModal = document.getElementById("settings-modal");
+        const closeSettingsBtn = document.getElementById("close-settings-btn");
+        const customTextInput = document.getElementById("custom-text-input");
+        const customLangBtns = document.querySelectorAll(".custom-lang-btn");
+        const clearCustomBtn = document.getElementById("clear-custom-btn");
+        const applyCustomBtn = document.getElementById("apply-custom-btn");
+        const startTestBtn = document.getElementById("start-test-btn");
+        const pauseTestBtn = document.getElementById("pause-test-btn");
+        const actionRestartBtn = document.getElementById("action-restart-btn");
+
+        // Create hidden input for capturing typing (Crucial for Bengali IME)
+        const hiddenInput = document.createElement("input");
+        hiddenInput.type = "text";
+        hiddenInput.autocomplete = "off";
+        hiddenInput.spellcheck = false;
+        hiddenInput.style.position = "absolute";
+        hiddenInput.style.opacity = "0";
+        hiddenInput.style.pointerEvents = "none";
+        document.body.appendChild(hiddenInput);
+
+        // State Variables
+        let currentWords = [];
+        let wordIndex = 0;
+        let timeLimit = 60;
+        let timeLeft = timeLimit;
+        let timer = null;
+        let isTyping = false;
+        let currentLanguage = 'en';
+        let currentDifficulty = 'easy';
+
+        let correctKeys = 0;
+        let incorrectKeys = 0;
+        let previousInputValue = "";
+
+        // Custom Mode Variables
+        let isCustomMode = false;
+        let customTextData = { text: "", lang: "en" };
+
+        // Test Pause State
+        let isPaused = false;
+        let lastSelectedParagraphIndex = -1;
+
+        // Segmenter for splitting text into graphemes safely
+        const segmenterEN = new Intl.Segmenter('en', { granularity: 'grapheme' });
+        const segmenterBN = new Intl.Segmenter('bn', { granularity: 'grapheme' });
+
+        function getGraphemes(text, lang) {
+            const segmenter = lang === 'bn' ? segmenterBN : segmenterEN;
+            return Array.from(segmenter.segment(text)).map(s => s.segment);
+        }
+
+        // History Management
+        let speedHistory = [];
+
+        function loadHistory() {
+            const data = localStorage.getItem('typing_speed_history');
+            if (data) {
+                speedHistory = JSON.parse(data);
+            } else {
+                speedHistory = [];
+            }
+            updateHistoryUI();
+        }
+
+        function saveHistory(entry) {
+            speedHistory.unshift(entry);
+            if (speedHistory.length > 5) {
+                speedHistory = speedHistory.slice(0, 5);
+            }
+            localStorage.setItem('typing_speed_history', JSON.stringify(speedHistory));
+            updateHistoryUI();
+        }
+
+        function updateHistoryUI() {
+            const lastWpmEl = document.getElementById('last-wpm');
+            const highestWpmEl = document.getElementById('highest-wpm');
+            const historyRowsEl = document.getElementById('history-rows');
+
+            const highest = speedHistory.reduce((max, item) => item.wpm > max ? item.wpm : max, 0);
+            const last = speedHistory.length > 0 ? speedHistory[0].wpm : 0;
+
+            lastWpmEl.innerHTML = `${last} <span class="unit">WPM</span>`;
+            highestWpmEl.innerHTML = `${highest} <span class="unit">WPM</span>`;
+
+            historyRowsEl.innerHTML = '';
+            if (speedHistory.length === 0) {
+                historyRowsEl.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-color);">No tests taken yet.</td></tr>`;
+                return;
+            }
+
+            speedHistory.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.lang === 'bn' ? 'বাং (ইউনিকোড)' : (item.lang === 'bn_classic' ? 'বাং (বিজয়)' : 'EN')}</td>
+                    <td>${item.time}s</td>
+                    <td style="color: var(--text-active); font-weight: 600;">${item.wpm}</td>
+                    <td>${item.accuracy}%</td>
+                `;
+                historyRowsEl.appendChild(row);
+            });
+        }
+
+        // Initialize Application
+        function initTest() {
+            isTyping = false;
+            isPaused = false;
+            clearInterval(timer);
+            timeLeft = timeLimit;
+            timerElement.innerText = timeLeft;
+            wordIndex = 0;
+            correctKeys = 0;
+            incorrectKeys = 0;
+            hiddenInput.value = "";
+            previousInputValue = "";
+
+            // Reset action buttons
+            startTestBtn.disabled = false;
+            startTestBtn.querySelector("span").innerText = "Start";
+            pauseTestBtn.disabled = true;
+
+            typingSection.classList.remove("hidden");
+            resultsSection.classList.add("hidden");
+            document.getElementById("history-section").classList.remove("hidden");
+            wordsContainer.innerHTML = "";
+            wordsContainer.scrollTop = 0;
+
+            // Change font family ONLY on words container to preserve Inter UI font
+            if (currentLanguage === 'bn') {
+                wordsContainer.style.fontFamily = "var(--font-bn)";
+            } else if (currentLanguage === 'bn_classic') {
+                wordsContainer.style.fontFamily = "var(--font-bn-classic)";
+            } else {
+                wordsContainer.style.fontFamily = "var(--font-main)";
+            }
+
+            if (isCustomMode && customTextData.text.trim().length > 0) {
+                let paragraph = customTextData.text.trim();
+                if (currentLanguage === 'bn_classic') {
+                    paragraph = unicodeToBijoy(paragraph);
+                }
+                let baseWords = paragraph.split(/\s+/).filter(w => w.length > 0);
+                currentWords = [];
+                // Repeat custom text to have at least 150 words to prevent out-of-words errors
+                while (currentWords.length < 150 && baseWords.length > 0) {
+                    currentWords = currentWords.concat(baseWords);
+                }
+            } else {
+                if (currentLanguage === 'bn' || currentLanguage === 'bn_classic') {
+                    const paragraphs = sentencesBN[currentDifficulty];
+                    let paragraphIndex;
+                    if (paragraphs.length > 1) {
+                        do {
+                            paragraphIndex = Math.floor(Math.random() * paragraphs.length);
+                        } while (paragraphIndex === lastSelectedParagraphIndex);
+                    } else {
+                        paragraphIndex = 0;
+                    }
+                    lastSelectedParagraphIndex = paragraphIndex;
+
+                    let selectedParagraph = paragraphs[paragraphIndex];
+                    if (currentLanguage === 'bn_classic') {
+                        selectedParagraph = unicodeToBijoy(selectedParagraph);
+                    }
+
+                    const paragraphWords = selectedParagraph.split(" ").filter(w => w.length > 0);
+                    currentWords = [];
+                    while (currentWords.length < 150 && paragraphWords.length > 0) {
+                        currentWords = currentWords.concat(paragraphWords);
+                    }
+                } else {
+                    const dictionary = wordsEN;
+                    currentWords = Array.from({ length: 150 }, () => dictionary[Math.floor(Math.random() * dictionary.length)]);
+                }
+            }
+
+            currentWords.forEach(word => {
+                const wordEl = document.createElement('div');
+                wordEl.classList.add('word');
+
+                // Split word into graphemes to prevent Bengali font breaking
+                const chars = getGraphemes(word, currentLanguage);
+
+                chars.forEach(char => {
+                    const letterEl = document.createElement('span');
+                    letterEl.classList.add('letter');
+                    letterEl.innerText = char;
+                    wordEl.appendChild(letterEl);
+                });
+                wordsContainer.appendChild(wordEl);
+            });
+
+            updateVisuals();
+            hiddenInput.focus();
+        }
+
+        // Keep focus on hidden input
+        document.addEventListener("click", () => {
+            if (settingsModal && !settingsModal.classList.contains("hidden")) {
+                return; // Do not steal focus if settings modal is open
+            }
+            if (resultsSection.classList.contains("hidden")) {
+                hiddenInput.focus();
+            }
+        });
+
+        // Restart via Tab + Enter
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && document.activeElement === restartBtn) {
+                initTest();
+                restartBtn.blur();
+            }
+        });
+
+        // Handle Backspacing to previous word
+        hiddenInput.addEventListener("keydown", (e) => {
+            if (isPaused) {
+                e.preventDefault();
+                return;
+            }
+            if (e.key === "Backspace" && hiddenInput.value === "" && wordIndex > 0) {
+                const prevWordEl = wordsContainer.childNodes[wordIndex - 1];
+                if (prevWordEl.classList.contains('error')) {
+                    wordIndex--;
+                    prevWordEl.classList.remove('error');
+
+                    // Extract what was typed
+                    let recoveredText = "";
+                    prevWordEl.querySelectorAll('.letter').forEach(l => {
+                        if (l.classList.contains('correct') || l.classList.contains('incorrect')) {
+                            recoveredText += l.innerText;
+                        }
+                    });
+                    hiddenInput.value = recoveredText;
+                    previousInputValue = recoveredText;
+                    scrollToActiveWord();
+                    updateVisuals();
+                    e.preventDefault();
+                }
+            }
+        });
+
+        // Scroll helper function for fluid bidirectional scroll
+        function scrollToActiveWord() {
+            const currentWordEl = wordsContainer.childNodes[wordIndex];
+            if (!currentWordEl) return;
+
+            const containerHeight = wordsContainer.clientHeight;
+            const wordTop = currentWordEl.offsetTop;
+            const pageIndex = Math.floor(wordTop / containerHeight);
+
+            // Scroll by blocks of 3 lines (containerHeight)
+            wordsContainer.scrollTop = pageIndex * containerHeight;
+        }
+
+        hiddenInput.addEventListener("input", (e) => {
+            if (isPaused) {
+                hiddenInput.value = previousInputValue;
+                return;
+            }
+            if (!isTyping && hiddenInput.value.trim().length > 0) {
+                startTimer();
+            }
+
+            const currentWordEl = wordsContainer.childNodes[wordIndex];
+            if (!currentWordEl) return;
+
+            let typedText = hiddenInput.value;
+
+            // Handle spacebar to move to next word
+            if (typedText.endsWith(" ")) {
+                typedText = typedText.slice(0, -1); // remove space
+
+                const expectedChars = getGraphemes(currentWords[wordIndex], currentLanguage);
+                const typedChars = getGraphemes(typedText, currentLanguage);
+
+                // Mark as error if incomplete or has mistakes
+                let isWordCorrect = true;
+                if (typedChars.length < expectedChars.length || currentWordEl.querySelectorAll('.incorrect').length > 0) {
+                    currentWordEl.classList.add('error');
+                    isWordCorrect = false;
+                }
+
+                // Count space correctly in WPM
+                if (isWordCorrect) {
+                    correctKeys++;
+                } else {
+                    incorrectKeys++;
+                }
+
+                wordIndex++;
+                hiddenInput.value = "";
+                previousInputValue = "";
+
+                scrollToActiveWord();
+                updateVisuals();
+                return;
+            }
+
+            updateVisuals();
+
+            // Track total keystrokes differences for stats
+            const typedChars = getGraphemes(typedText, currentLanguage);
+            const expectedChars = getGraphemes(currentWords[wordIndex], currentLanguage);
+            const prevTypedChars = getGraphemes(previousInputValue, currentLanguage);
+
+            if (typedChars.length > prevTypedChars.length) {
+                const addedCharIndex = typedChars.length - 1;
+                if (addedCharIndex < expectedChars.length) {
+                    if (typedChars[addedCharIndex] === expectedChars[addedCharIndex]) {
+                        correctKeys++;
+                    } else {
+                        incorrectKeys++;
+                    }
+                } else {
+                    incorrectKeys++;
+                }
+            }
+
+            previousInputValue = typedText;
+        });
+
+        function updateVisuals() {
+            document.querySelectorAll('.letter').forEach(l => l.classList.remove('active', 'active-space'));
+
+            const currentWordEl = wordsContainer.childNodes[wordIndex];
+            if (!currentWordEl) return;
+
+            const expectedChars = getGraphemes(currentWords[wordIndex], currentLanguage);
+            const typedChars = getGraphemes(hiddenInput.value, currentLanguage);
+            const letters = currentWordEl.querySelectorAll('.letter');
+
+            letters.forEach(l => l.classList.remove('correct', 'incorrect'));
+
+            for (let i = 0; i < letters.length; i++) {
+                if (i < typedChars.length) {
+                    if (typedChars[i] === expectedChars[i]) {
+                        letters[i].classList.add("correct");
+                    } else {
+                        letters[i].classList.add("incorrect");
+                    }
+                }
+            }
+
+            if (typedChars.length < letters.length) {
+                letters[typedChars.length].classList.add('active');
+            } else {
+                letters[letters.length - 1].classList.add('active-space');
+            }
+        }
+
+        function startTimer() {
+            isTyping = true;
+            isPaused = false;
+            document.getElementById("history-section").classList.add("hidden");
+
+            // Update buttons state
+            startTestBtn.disabled = true;
+            pauseTestBtn.disabled = false;
+
+            startTimerInterval();
+        }
+
+        function startTimerInterval() {
+            clearInterval(timer);
+            timer = setInterval(() => {
+                timeLeft--;
+                timerElement.innerText = timeLeft;
+
+                if (timeLeft <= 0) {
+                    endTest();
+                }
+            }, 1000);
+        }
+
+        function pauseTest() {
+            if (!isTyping || isPaused) return;
+            isPaused = true;
+            clearInterval(timer);
+
+            // Update buttons state
+            startTestBtn.disabled = false;
+            startTestBtn.querySelector("span").innerText = "Resume";
+            pauseTestBtn.disabled = true;
+
+            // Remove active letter indicators to signal paused state
+            document.querySelectorAll('.letter').forEach(l => l.classList.remove('active', 'active-space'));
+        }
+
+        function resumeTest() {
+            if (!isTyping) {
+                // If the test hasn't started yet, click to start
+                startTimer();
+                return;
+            }
+            if (!isPaused) return;
+            isPaused = false;
+
+            // Update buttons state
+            startTestBtn.disabled = true;
+            pauseTestBtn.disabled = false;
+
+            startTimerInterval();
+
+            // Restore caret indicators and refocus
+            updateVisuals();
+            hiddenInput.focus();
+        }
+
+        function endTest() {
+            clearInterval(timer);
+            typingSection.classList.add("hidden");
+            resultsSection.classList.remove("hidden");
+            document.getElementById("history-section").classList.remove("hidden");
+            restartBtn.focus();
+            hiddenInput.blur();
+
+            // Disable action buttons
+            startTestBtn.disabled = true;
+            pauseTestBtn.disabled = true;
+
+            const totalTimeMinutes = timeLimit / 60;
+            const wpm = Math.round((correctKeys / 5) / totalTimeMinutes);
+            const totalKeys = correctKeys + incorrectKeys;
+            const accuracy = totalKeys > 0 ? Math.round((correctKeys / totalKeys) * 100) : 0;
+
+            wpmValue.innerText = wpm;
+            accValue.innerText = `${accuracy}%`;
+            keyValue.innerHTML = `<span class="correct-text">${correctKeys}</span> | <span class="incorrect-text">${incorrectKeys}</span>`;
+
+            // Save to history
+            saveHistory({
+                lang: currentLanguage,
+                time: timeLimit,
+                wpm: wpm,
+                accuracy: accuracy
+            });
+        }
+
+        timeBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                timeBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                timeLimit = parseInt(e.target.getAttribute('data-time'));
+                initTest();
+            });
+        });
+
+        langBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                isCustomMode = false; // exit custom text mode when switching default language
+                langBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentLanguage = e.target.getAttribute('data-lang');
+                if (currentLanguage === 'bn' || currentLanguage === 'bn_classic') {
+                    diffSelector.classList.remove('hidden');
+                } else {
+                    diffSelector.classList.add('hidden');
+                }
+                initTest();
+            });
+        });
+
+        diffBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                isCustomMode = false; // exit custom text mode when switching difficulty
+                diffBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentDifficulty = e.target.getAttribute('data-diff');
+                initTest();
+            });
+        });
+
+        // Settings Modal Event Listeners
+        settingsBtn.addEventListener("click", () => {
+            customTextInput.value = customTextData.text;
+            customLangBtns.forEach(btn => {
+                if (btn.getAttribute('data-custom-lang') === customTextData.lang) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            settingsModal.classList.remove("hidden");
+            hiddenInput.blur();
+            customTextInput.focus();
+        });
+
+        const closeModal = () => {
+            settingsModal.classList.add("hidden");
+            if (resultsSection.classList.contains("hidden")) {
+                hiddenInput.focus();
+            }
+        };
+
+        closeSettingsBtn.addEventListener("click", closeModal);
+
+        settingsModal.addEventListener("click", (e) => {
+            if (e.target === settingsModal) {
+                closeModal();
+            }
+        });
+
+        customLangBtns.forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                customLangBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+            });
+        });
+
+        applyCustomBtn.addEventListener("click", () => {
+            const enteredText = customTextInput.value.trim();
+            if (enteredText.length === 0) {
+                alert("Please enter some text or click Clear / Use Default.");
+                return;
+            }
+            customTextData.text = enteredText;
+            customTextData.lang = document.querySelector(".custom-lang-btn.active").getAttribute('data-custom-lang');
+            isCustomMode = true;
+
+            currentLanguage = customTextData.lang;
+            langBtns.forEach(b => {
+                if (b.getAttribute('data-lang') === currentLanguage) {
+                    b.classList.add('active');
+                } else {
+                    b.classList.remove('active');
+                }
+            });
+
+            diffSelector.classList.add('hidden'); // hide difficulty in custom text mode
+
+            closeModal();
+            initTest();
+        });
+
+        clearCustomBtn.addEventListener("click", () => {
+            customTextInput.value = "";
+            customTextData.text = "";
+            isCustomMode = false;
+
+            if (currentLanguage === 'bn' || currentLanguage === 'bn_classic') {
+                diffSelector.classList.remove('hidden');
+            } else {
+                diffSelector.classList.add('hidden');
+            }
+
+            closeModal();
+            initTest();
+        });
+
+        restartBtn.addEventListener("click", initTest);
+        startTestBtn.addEventListener("click", resumeTest);
+        pauseTestBtn.addEventListener("click", pauseTest);
+        actionRestartBtn.addEventListener("click", initTest);
+
+        // Reset History Event Listener
+        const resetHistoryBtn = document.getElementById("reset-history-btn");
+        let resetConfirmTimeout = null;
+
+        resetHistoryBtn.addEventListener("click", () => {
+            if (resetHistoryBtn.classList.contains("confirming")) {
+                // Clear localStorage
+                localStorage.removeItem("typing_speed_history");
+                speedHistory = [];
+                updateHistoryUI();
+
+                // Reset button state
+                resetHistoryBtn.classList.remove("confirming");
+                resetHistoryBtn.querySelector("span").innerText = "Reset";
+                clearTimeout(resetConfirmTimeout);
+            } else {
+                // Change to confirmation state
+                resetHistoryBtn.classList.add("confirming");
+                resetHistoryBtn.querySelector("span").innerText = "Confirm Reset?";
+
+                // Revert after 3 seconds if not clicked again
+                resetConfirmTimeout = setTimeout(() => {
+                    resetHistoryBtn.classList.remove("confirming");
+                    resetHistoryBtn.querySelector("span").innerText = "Reset";
+                }, 3000);
+            }
+        });
+
+        loadHistory();
+        initTest();
+    </script>
+</body>
+
+</html>
